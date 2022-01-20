@@ -6,5 +6,7 @@ import (
 )
 
 func RegisterRoutes(e *gin.Engine) {
-	e.GET("/~/Workspace/chouyang.io/*filepath", handlers.GetFileByPath)
+	file := handlers.FileHandler{}
+
+	e.GET("/~/Workspace/chouyang.io/*filepath", file.GetFileByPath)
 }

@@ -17,3 +17,10 @@ type File struct {
 	CreatedAt  time.Time `json:"created_at" gorm:"not null; autoUpdateTime; comment:file created at"`
 	UpdatedAt  time.Time `json:"updated_at" gorm:"not null; autoCreateTime; comment:file updated at"`
 }
+
+type Tree struct {
+	Files []*File `json:"files,omitempty"`
+	Trees []*Tree `json:"trees,omitempty"`
+	Name  string  `json:"name"`
+	Path  string  `json:"path"`
+}
