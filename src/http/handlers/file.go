@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"chouyang.io/src/errors"
+	"chouyang.io/src/tools"
 	"chouyang.io/src/types/models"
 	"crypto/md5"
 	"fmt"
@@ -13,10 +14,11 @@ import (
 )
 
 var cwd string
+var rootPath string
 
 func init() {
 	cwd, _ = os.Getwd()
-	cwd = fmt.Sprintf("%s/", cwd)
+	rootPath = tools.Env("APP_ROOT").(string)
 }
 
 type FileHandler struct {
@@ -25,10 +27,11 @@ type FileHandler struct {
 
 func (f *FileHandler) GetFileByPath(c *gin.Context) {
 	path := fmt.Sprintf("%s%s", cwd, strings.ReplaceAll(c.Param("filepath"), "../", ""))
+	path = strings.TrimRight(path, "/")
 
 	fi, err := os.Stat(path)
 	if err != nil {
-		f.Error(c, errors.NotFound{})
+		f.Error(c, errors.AccessDenied{})
 		return
 	}
 
@@ -46,7 +49,7 @@ func (f *FileHandler) GetFileByPath(c *gin.Context) {
 			return
 		}
 
-		c.Data(200, file.Mime, []byte(file.Content))
+		c.JSON(200, file)
 	}
 }
 
@@ -62,8 +65,8 @@ func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, error
 
 	return &models.File{
 		ID:         0,
-		Name:       file.Name(),
-		Path:       strings.Replace(path, cwd, "", 1),
+		Name:       f.trimName(file.Name()),
+		Path:       f.trimPath(path),
 		Size:       fi.Size(),
 		Mime:       f.GetFileMime(file.Name()),
 		Hash:       f.Md5(content),
@@ -83,8 +86,8 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 	tree := &models.Tree{
 		Trees: nil,
 		Files: nil,
-		Name:  path,
-		Path:  strings.Replace(path, cwd, "", 1),
+		Name:  f.trimName(path),
+		Path:  f.trimPath(path),
 	}
 	for _, item := range items {
 		switch item.Name() {
@@ -111,25 +114,34 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 
 func (f *FileHandler) GetFileMime(name string) string {
 	list := map[string]string{
-		"js":   "application/javascript",
-		"css":  "text/css",
-		"html": "text/html",
-		"json": "application/json",
-		"jpg":  "image/jpeg",
-		"jpeg": "image/jpeg",
-		"png":  "image/png",
-		"gif":  "image/gif",
-		"svg":  "image/svg+xml",
-		"ico":  "image/x-icon",
-		"txt":  "text/plain",
-		"md":   "text/markdown",
-		"go":   "text/go",
+		"js":         "application/javascript",
+		"css":        "text/css",
+		"html":       "text/html",
+		"json":       "application/json",
+		"jpg":        "image/jpeg",
+		"jpeg":       "image/jpeg",
+		"png":        "image/png",
+		"gif":        "image/gif",
+		"svg":        "image/svg+xml",
+		"ico":        "image/x-icon",
+		"txt":        "text/plain",
+		"md":         "text/markdown",
+		"go":         "application/go",
+		"gitignore":  "text/gitignore",
+		"env":        "text/env",
+		"sum":        "text/sum",
+		"sh":         "application/shell",
+		"Dockerfile": "text/dockerfile",
+		"yml":        "text/yaml",
+		"mod":        "text/module",
 	}
 
-	ext := strings.ToLower(strings.TrimLeft(name, "."))
+	split := strings.Split(name, ".")
 
-	if mime, ok := list[ext]; ok {
-		return mime
+	if len(split) >= len(split)-1 {
+		if mime, ok := list[split[len(split)-1]]; ok {
+			return mime
+		}
 	}
 
 	return "application/octet-stream"
@@ -139,5 +151,25 @@ func (f *FileHandler) Md5(content []byte) string {
 	hash := md5.New()
 	hash.Write(content)
 
-	return fmt.Sprintf("%x", hash.Sum(nil))
+	return strings.ToUpper(fmt.Sprintf("%x", hash.Sum(nil)))
+}
+
+func (f *FileHandler) trimPath(path string) string {
+	p := strings.Trim(strings.ReplaceAll(path, cwd, ""), "/")
+
+	if p == "" {
+		return "/"
+	}
+
+	return fmt.Sprintf("%s/%s", rootPath, p)
+}
+
+func (f *FileHandler) trimName(name string) string {
+	n := strings.Split(f.trimPath(name), "/")
+
+	if n[len(n)-1] == "" {
+		return "/"
+	}
+
+	return n[len(n)-1]
 }
