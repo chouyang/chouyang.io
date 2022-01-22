@@ -54,28 +54,29 @@ func (f *FileHandler) GetFileByPath(c *gin.Context) {
 }
 
 func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, errors.Throwable) {
-	file, err := os.Open(path)
-	defer file.Close()
+	of, err := os.Open(path)
+	defer of.Close()
 	if err != nil {
 		return nil, errors.NotFound{}
 	}
 
 	content := make([]byte, fi.Size())
-	_, _ = file.Read(content)
+	_, _ = of.Read(content)
 
-	return &models.File{
-		ID:         0,
-		Name:       f.trimName(file.Name()),
+	fm := models.File{
+		Name:       f.trimName(of.Name()),
 		Path:       f.trimPath(path),
 		Size:       fi.Size(),
-		Mime:       f.GetFileMime(file.Name()),
+		Mime:       f.GetFileMime(of.Name()),
 		Hash:       f.Md5(content),
 		Permission: fi.Mode().String(),
 		Content:    string(content),
 		CreatedBy:  0,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  fi.ModTime(),
-	}, nil
+	}
+
+	return &fm, nil
 }
 
 func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
@@ -83,7 +84,7 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 	if err != nil {
 		return nil, errors.AccessDenied{}
 	}
-	tree := &models.Tree{
+	tree := models.Tree{
 		Trees: nil,
 		Files: nil,
 		Name:  f.trimName(path),
@@ -109,7 +110,7 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 		}
 	}
 
-	return tree, nil
+	return &tree, nil
 }
 
 func (f *FileHandler) GetFileMime(name string) string {

@@ -19,8 +19,11 @@ type File struct {
 }
 
 type Tree struct {
-	Files []*File `json:"files,omitempty"`
-	Trees []*Tree `json:"trees,omitempty"`
-	Name  string  `json:"name"`
-	Path  string  `json:"path"`
+	ID        uint      `json:"id"         gorm:"not null; primaryKey; autoIncrement; comment:file id"`
+	Files     []*File   `json:"files"`
+	Trees     []*Tree   `json:"trees"`
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"created_at" gorm:"not null; autoUpdateTime; comment:file created at"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"not null; autoCreateTime; comment:file updated at"`
 }
