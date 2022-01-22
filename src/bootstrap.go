@@ -18,6 +18,10 @@ type Engine struct {
 	*gorm.DB
 }
 
+func DefaultEngine() *Engine {
+	return &Engine{Engine: gin.Default()}
+}
+
 func (e *Engine) Ignite() *Engine {
 	host := tools.Env("APP_HOST").(string)
 	port := tools.Env("APP_PORT").(string)
