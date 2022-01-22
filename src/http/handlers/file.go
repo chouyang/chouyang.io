@@ -16,9 +16,13 @@ import (
 var cwd string
 var rootPath string
 
+var ignoreList []string
+
 func init() {
 	cwd, _ = os.Getwd()
 	rootPath = tools.Env("APP_ROOT").(string)
+
+	ignoreList = []string{".", "..", ".git", ".env", ".idea", ".vscode", ".DS_Store", "node_modules"}
 }
 
 type FileHandler struct {
@@ -60,6 +64,10 @@ func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, error
 		return nil, errors.NotFound{}
 	}
 
+	if f.isForbidden(f.trimName(of.Name())) {
+		return nil, errors.AccessDenied{}
+	}
+
 	content := make([]byte, fi.Size())
 	_, _ = of.Read(content)
 
@@ -91,8 +99,7 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 		Path:  f.trimPath(path),
 	}
 	for _, item := range items {
-		switch item.Name() {
-		case ".", "..", ".git", ".env", ".idea", ".vscode", ".DS_Store", "node_modules":
+		if f.isForbidden(item.Name()) {
 			continue
 		}
 		if item.IsDir() {
@@ -173,4 +180,14 @@ func (f *FileHandler) trimName(name string) string {
 	}
 
 	return n[len(n)-1]
+}
+
+func (f *FileHandler) isForbidden(path string) bool {
+	for _, item := range ignoreList {
+		if path == item {
+			return true
+		}
+	}
+
+	return false
 }
