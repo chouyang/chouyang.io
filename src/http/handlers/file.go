@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -20,9 +21,11 @@ var ignoreList []string
 
 func init() {
 	cwd, _ = os.Getwd()
+	cwd = path.Dir(cwd)
+
 	rootPath = tools.Env("APP_ROOT").(string)
 
-	ignoreList = []string{".", "..", ".git", ".env", ".idea", ".vscode", ".DS_Store", "node_modules"}
+	ignoreList = []string{".env", ".DS_Store", ".git/", ".idea/", ".vscode/", "node_modules/"}
 }
 
 type FileHandler struct {
@@ -30,24 +33,29 @@ type FileHandler struct {
 }
 
 func (f *FileHandler) GetFileByPath(c *gin.Context) {
-	path := fmt.Sprintf("%s%s", cwd, strings.ReplaceAll(c.Param("filepath"), "../", ""))
-	path = strings.TrimRight(path, "/")
+	root := fmt.Sprintf("%s%s", cwd, strings.ReplaceAll(c.Param("filepath"), "../", ""))
+	root = strings.TrimRight(root, "/")
 
-	fi, err := os.Stat(path)
+	fi, err := os.Stat(root)
 	if err != nil {
 		f.Error(c, errors.AccessDenied{})
 		return
 	}
 
 	if fi.IsDir() {
-		tree, err := f.readTree(path)
+		tree, err := f.readTree(root)
 		if err != nil {
 			f.Error(c, err)
 			return
 		}
+		if tree == nil {
+			f.Error(c, errors.AccessDenied{})
+			return
+		}
+
 		c.JSON(200, tree)
 	} else {
-		file, err := f.readFile(path, fi)
+		file, err := f.readFile(root, fi)
 		if err != nil {
 			f.Error(c, err)
 			return
@@ -64,7 +72,7 @@ func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, error
 		return nil, errors.NotFound{}
 	}
 
-	if f.isForbidden(f.trimName(of.Name())) {
+	if f.isForbidden(of.Name()) {
 		return nil, errors.AccessDenied{}
 	}
 
@@ -92,6 +100,9 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 	if err != nil {
 		return nil, errors.AccessDenied{}
 	}
+	if f.isForbidden(path) {
+		return nil, nil
+	}
 	tree := models.Tree{
 		Trees: nil,
 		Files: nil,
@@ -99,22 +110,23 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 		Path:  f.trimPath(path),
 	}
 	for _, item := range items {
-		if f.isForbidden(item.Name()) {
+		if item.IsDir() {
+			subTree, _ := f.readTree(fmt.Sprintf("%s/%s", path, item.Name()))
+			if subTree != nil {
+				tree.Trees = append(tree.Trees, subTree)
+			}
+
 			continue
 		}
-		if item.IsDir() {
-			subTree, err := f.readTree(fmt.Sprintf("%s/%s", path, item.Name()))
-			if err != nil {
-				return nil, err
-			}
-			tree.Trees = append(tree.Trees, subTree)
-		} else {
-			file, err := f.readFile(fmt.Sprintf("%s/%s", path, item.Name()), item)
-			if err != nil {
-				return nil, err
-			}
+
+		file, _ := f.readFile(fmt.Sprintf("%s/%s", path, item.Name()), item)
+		if file != nil {
 			tree.Files = append(tree.Files, file)
 		}
+	}
+
+	if tree.Trees == nil && tree.Files == nil {
+		return nil, nil
 	}
 
 	return &tree, nil
@@ -183,8 +195,13 @@ func (f *FileHandler) trimName(name string) string {
 }
 
 func (f *FileHandler) isForbidden(path string) bool {
+	path = strings.Replace(path, cwd, "", 1)
 	for _, item := range ignoreList {
-		if path == item {
+		if strings.HasSuffix(item, "/") && strings.Contains(path, item) {
+			return true
+		}
+
+		if strings.HasSuffix(path, item) {
 			return true
 		}
 	}
