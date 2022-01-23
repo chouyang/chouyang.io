@@ -13,27 +13,31 @@ import (
 
 var once sync.Once
 
+// Engine is the heart of the application
 type Engine struct {
 	*gin.Engine
 	*gorm.DB
 }
 
+// DefaultEngine returns a default engine
 func DefaultEngine() *Engine {
 	return &Engine{Engine: gin.Default()}
 }
 
+// Ignite is the starting point of the application
+// It registers all the routes and starting listening on the port
 func (e *Engine) Ignite() *Engine {
-	host := tools.Env("APP_HOST").(string)
-	port := tools.Env("APP_PORT").(string)
-
 	e.registerRoutes()
 
+	host := tools.Env("APP_HOST").(string)
+	port := tools.Env("APP_PORT").(string)
 	fmt.Printf("Server started on %s:%s", host, port)
 	_ = e.Run(":" + port)
 
 	return e
 }
 
+// registerRoutes registers all the routes
 func (e *Engine) registerRoutes() *Engine {
 	routes := http.GetRoutes()
 	for _, route := range routes {
@@ -43,12 +47,15 @@ func (e *Engine) registerRoutes() *Engine {
 	return e
 }
 
+// Migrate run the migrations
 func (e *Engine) Migrate() {
 	e.loadDB()
 	_ = e.DB.AutoMigrate(&models.User{})
 	_ = e.DB.AutoMigrate(&models.File{})
 }
 
+// loadDB creates a new database connection
+// TODO use connection pool instead of singleton
 func (e *Engine) loadDB() {
 	gin.DisableConsoleColor()
 	var err error

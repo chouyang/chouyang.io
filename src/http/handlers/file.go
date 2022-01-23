@@ -4,7 +4,6 @@ import (
 	"chouyang.io/src/errors"
 	"chouyang.io/src/tools"
 	"chouyang.io/src/types/models"
-	"crypto/md5"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
@@ -14,11 +13,16 @@ import (
 	"time"
 )
 
+// cwd points to the parent path of the current working directory
 var cwd string
+
+// rootPath represents the virtual root path of the project
 var rootPath string
 
+// ignoreList is a list of files and directories to ignore
 var ignoreList []string
 
+// init initializes the package variables
 func init() {
 	cwd, _ = os.Getwd()
 	cwd = path.Dir(cwd)
@@ -28,10 +32,12 @@ func init() {
 	ignoreList = []string{".env", ".DS_Store", ".git/", ".idea/", ".vscode/", "node_modules/"}
 }
 
+// FileHandler handles requests related to files
 type FileHandler struct {
 	Handler
 }
 
+// GetFileByPath returns the file at the given path if it exists
 func (f *FileHandler) GetFileByPath(c *gin.Context) {
 	root := fmt.Sprintf("%s%s", cwd, strings.ReplaceAll(c.Param("filepath"), "../", ""))
 	root = strings.TrimRight(root, "/")
@@ -65,6 +71,7 @@ func (f *FileHandler) GetFileByPath(c *gin.Context) {
 	}
 }
 
+// readFile reads the file at the given path and returns a File object
 func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, errors.Throwable) {
 	of, err := os.Open(path)
 	defer of.Close()
@@ -83,8 +90,8 @@ func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, error
 		Name:       f.trimName(of.Name()),
 		Path:       f.trimPath(path),
 		Size:       fi.Size(),
-		Mime:       f.GetFileMime(of.Name()),
-		Hash:       f.Md5(content),
+		Mime:       f.getFileMime(of.Name()),
+		Hash:       tools.Md5(content),
 		Permission: fi.Mode().String(),
 		Content:    string(content),
 		CreatedBy:  0,
@@ -95,6 +102,7 @@ func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, error
 	return &fm, nil
 }
 
+// readTree recursively reads the directory at the given path and returns a Tree object
 func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 	items, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -132,7 +140,8 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 	return &tree, nil
 }
 
-func (f *FileHandler) GetFileMime(name string) string {
+// getFileMime returns the mime type of the file based on its extension
+func (f *FileHandler) getFileMime(name string) string {
 	list := map[string]string{
 		"js":         "application/javascript",
 		"css":        "text/css",
@@ -167,13 +176,7 @@ func (f *FileHandler) GetFileMime(name string) string {
 	return "application/octet-stream"
 }
 
-func (f *FileHandler) Md5(content []byte) string {
-	hash := md5.New()
-	hash.Write(content)
-
-	return strings.ToUpper(fmt.Sprintf("%x", hash.Sum(nil)))
-}
-
+// trimPath replaces the root path with the virtual root path
 func (f *FileHandler) trimPath(path string) string {
 	p := strings.Trim(strings.ReplaceAll(path, cwd, ""), "/")
 
@@ -184,6 +187,7 @@ func (f *FileHandler) trimPath(path string) string {
 	return fmt.Sprintf("%s/%s", rootPath, p)
 }
 
+// trimName trims out the root path from the file name
 func (f *FileHandler) trimName(name string) string {
 	n := strings.Split(f.trimPath(name), "/")
 
@@ -194,6 +198,7 @@ func (f *FileHandler) trimName(name string) string {
 	return n[len(n)-1]
 }
 
+// isForbidden checks if the file is in the ignoreList
 func (f *FileHandler) isForbidden(path string) bool {
 	path = strings.Replace(path, cwd, "", 1)
 	for _, item := range ignoreList {

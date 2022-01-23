@@ -5,10 +5,11 @@ import (
 	"strings"
 )
 
-var env map[string]interface{}
+// configs is a map of environment variables to their values.
+var configs map[string]interface{}
 
 func init() {
-	if env != nil {
+	if configs != nil {
 		return
 	}
 
@@ -17,14 +18,16 @@ func init() {
 	}
 }
 
+// Env returns the value of the environment variable.
 func Env(path string) interface{} {
-	if val, ok := env[path]; ok {
+	if val, ok := configs[path]; ok {
 		return val
 	}
 
 	return nil
 }
 
+// loadEnv loads the environment variables into the configs map.
 func loadEnv(path string, size int64) {
 	file, err := os.OpenFile(path, os.O_RDONLY, 0644)
 	if err != nil {
@@ -34,7 +37,7 @@ func loadEnv(path string, size int64) {
 	buf := make([]byte, size)
 	_, _ = file.Read(buf)
 	lines := strings.Split(string(buf), "\n")
-	env = make(map[string]interface{}, len(lines))
+	configs = make(map[string]interface{}, len(lines))
 	for _, line := range lines {
 		if strings.HasPrefix(line, "#") {
 			continue
@@ -42,7 +45,7 @@ func loadEnv(path string, size int64) {
 
 		if strings.Contains(line, "=") {
 			kv := strings.Split(line, "=")
-			env[kv[0]] = kv[1]
+			configs[kv[0]] = kv[1]
 		}
 	}
 

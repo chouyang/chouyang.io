@@ -5,9 +5,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Handler implements common handler functions.
 type Handler struct {
 }
 
+// Okay is a helper function to return an ApiOK response.
 func (h *Handler) Okay(c *gin.Context, payload interface{}) {
 	c.JSON(200, gin.H{
 		"code":    errors.ApiOK,
@@ -16,6 +18,7 @@ func (h *Handler) Okay(c *gin.Context, payload interface{}) {
 	})
 }
 
+// Error is a helper function to return a Throwable error response.
 func (h *Handler) Error(c *gin.Context, err errors.Throwable) {
 	c.JSON(200, gin.H{
 		"code":    err.GetCode(),

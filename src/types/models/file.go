@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// File model represents an actual file or an article.
 type File struct {
 	ID         uint      `json:"id"         gorm:"not null; primaryKey; autoIncrement; comment:file id"`
 	Name       string    `json:"name"       gorm:"not null; size:64; index; comment:file name"`
@@ -18,6 +19,7 @@ type File struct {
 	UpdatedAt  time.Time `json:"updated_at" gorm:"not null; autoCreateTime; comment:file updated at"`
 }
 
+// Tree model represents the path of an actual file or an article.
 type Tree struct {
 	ID        uint      `json:"id"         gorm:"not null; primaryKey; autoIncrement; comment:file id"`
 	Files     []*File   `json:"files"`
