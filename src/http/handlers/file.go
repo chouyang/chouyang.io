@@ -104,12 +104,12 @@ func (f *FileHandler) readFile(path string, fi os.FileInfo) (*models.File, error
 
 // readTree recursively reads the directory at the given path and returns a Tree object
 func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
+	if f.isForbidden(path) {
+		return nil, nil
+	}
 	items, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, errors.AccessDenied{}
-	}
-	if f.isForbidden(path) {
-		return nil, nil
 	}
 	tree := models.Tree{
 		Trees: nil,
