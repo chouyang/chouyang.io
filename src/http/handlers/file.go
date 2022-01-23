@@ -127,10 +127,11 @@ func (f *FileHandler) readTree(path string) (*models.Tree, errors.Throwable) {
 			continue
 		}
 
-		file, _ := f.readFile(fmt.Sprintf("%s/%s", path, item.Name()), item)
-		if file != nil {
-			tree.Files = append(tree.Files, file)
+		if f.isForbidden(fmt.Sprintf("%s/%s", path, item.Name())) {
+			continue
 		}
+
+		tree.Files = append(tree.Files, item.Name())
 	}
 
 	if tree.Trees == nil && tree.Files == nil {
@@ -202,8 +203,14 @@ func (f *FileHandler) trimName(name string) string {
 func (f *FileHandler) isForbidden(path string) bool {
 	path = strings.Replace(path, cwd, "", 1)
 	for _, item := range ignoreList {
-		if strings.HasSuffix(item, "/") && strings.Contains(path, item) {
-			return true
+		if strings.HasSuffix(item, "/") {
+			// check if segments of the path match the ignoreList
+			segments := strings.Split(path, "/")
+			for _, segment := range segments {
+				if strings.Trim(segment, "/") == strings.Trim(item, "/") {
+					return true
+				}
+			}
 		}
 
 		if strings.HasSuffix(path, item) {
