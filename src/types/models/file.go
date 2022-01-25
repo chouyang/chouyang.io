@@ -24,8 +24,9 @@ type Tree struct {
 	ID        uint      `json:"id"         gorm:"not null; primaryKey; autoIncrement; comment:file id"`
 	Name      string    `json:"name"`
 	Path      string    `json:"path"`
+	Extra     string    `json:"extra"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null; autoUpdateTime; comment:file created at"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"not null; autoCreateTime; comment:file updated at"`
-	Files     []string  `json:"files"`
+	Files     []*File   `json:"files"`
 	Trees     []*Tree   `json:"trees"      gorm:"foreignKey:ParentID; comment:tree list"`
 }

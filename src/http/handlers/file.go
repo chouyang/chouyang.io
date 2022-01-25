@@ -39,7 +39,7 @@ func (f *FileHandler) GetFileByPath(c *gin.Context) {
 
 		c.JSON(200, tree)
 	} else {
-		file, err := f.ReadFile(root, fi)
+		file, err := f.ReadFile(root, true, fi)
 		if err != nil {
 			f.Error(c, err)
 			return

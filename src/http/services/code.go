@@ -11,12 +11,14 @@ import (
 	"time"
 )
 
+var projectRoot = "chouyang.io"
+
 // CodeService handles requests related to files
 type CodeService struct {
 }
 
 // ReadFile reads the file at the given path and returns a File object
-func (cs *CodeService) ReadFile(path string, fi os.FileInfo) (*models.File, errors.Throwable) {
+func (cs *CodeService) ReadFile(path string, loadContent bool, fi os.FileInfo) (*models.File, errors.Throwable) {
 	of, err := os.Open(path)
 	defer of.Close()
 	if err != nil {
@@ -27,15 +29,20 @@ func (cs *CodeService) ReadFile(path string, fi os.FileInfo) (*models.File, erro
 		return nil, errors.AccessDenied{}
 	}
 
-	content := make([]byte, fi.Size())
-	_, _ = of.Read(content)
+	var content []byte
+	if loadContent {
+		content = make([]byte, fi.Size())
+		_, _ = of.Read(content)
+	} else {
+		content = []byte{}
+	}
 
 	fm := models.File{
 		Name:       cs.TrimName(of.Name()),
 		Path:       cs.TrimPath(path),
 		Size:       fi.Size(),
 		Mime:       cs.GetFileMime(of.Name()),
-		Hash:       tools.Md5(content),
+		Hash:       tools.Md5([]byte(path)),
 		Permission: fi.Mode().String(),
 		Content:    string(content),
 		CreatedBy:  0,
@@ -55,11 +62,17 @@ func (cs *CodeService) ReadTree(path string) (*models.Tree, errors.Throwable) {
 	if err != nil {
 		return nil, errors.AccessDenied{}
 	}
+	treeName := cs.TrimName(path)
+	extra := ""
+	if treeName == projectRoot {
+		extra = tools.Env("APP_ROOT").(string)
+	}
 	tree := models.Tree{
 		Trees:     []*models.Tree{},
-		Files:     []string{},
-		Name:      cs.TrimName(path),
+		Files:     []*models.File{},
+		Name:      treeName,
 		Path:      cs.TrimPath(path),
+		Extra:     extra,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -77,7 +90,11 @@ func (cs *CodeService) ReadTree(path string) (*models.Tree, errors.Throwable) {
 			continue
 		}
 
-		tree.Files = append(tree.Files, item.Name())
+		f, err := cs.ReadFile(fmt.Sprintf("%s/%s", path, item.Name()), false, item)
+		if err != nil {
+			continue
+		}
+		tree.Files = append(tree.Files, f)
 	}
 
 	if tree.Trees == nil && tree.Files == nil {
@@ -90,31 +107,35 @@ func (cs *CodeService) ReadTree(path string) (*models.Tree, errors.Throwable) {
 // GetFileMime returns the mime type of the file based on its extension
 func (cs *CodeService) GetFileMime(name string) string {
 	list := map[string]string{
-		"js":         "application/javascript",
-		"css":        "text/css",
-		"html":       "text/html",
-		"json":       "application/json",
-		"jpg":        "image/jpeg",
-		"jpeg":       "image/jpeg",
-		"png":        "image/png",
-		"gif":        "image/gif",
-		"svg":        "image/svg+xml",
-		"ico":        "image/x-icon",
-		"txt":        "text/plain",
-		"md":         "text/markdown",
-		"go":         "application/go",
-		"gitignore":  "text/gitignore",
-		"env":        "text/env",
-		"sum":        "text/sum",
-		"sh":         "application/shell",
-		"Dockerfile": "text/dockerfile",
-		"yml":        "text/yaml",
-		"mod":        "text/module",
+		"go":           "application/go",
+		"js":           "application/javascript",
+		"ts":           "application/typescript",
+		"tsx":          "application/typescript-react",
+		"jsx":          "application/javascript-react",
+		"css":          "text/css",
+		"scss":         "text/sass",
+		"html":         "text/html",
+		"json":         "application/json",
+		"jpg":          "image/jpeg",
+		"jpeg":         "image/jpeg",
+		"png":          "image/png",
+		"gif":          "image/gif",
+		"svg":          "image/svg+xml",
+		"ico":          "image/x-icon",
+		"txt":          "text/plain",
+		"md":           "text/markdown",
+		"sh":           "application/shell",
+		"Dockerfile":   "text/dockerfile",
+		"dockerfile":   "text/dockerfile",
+		"ignore":       "text/ignore",
+		"gitignore":    "text/gitignore",
+		"dockerignore": "text/dockerignore",
+		"yml":          "text/yaml",
 	}
 
 	split := strings.Split(name, ".")
 
-	if len(split) >= len(split)-1 {
+	if len(split) >= 1 {
 		if mime, ok := list[split[len(split)-1]]; ok {
 			return mime
 		}
@@ -139,7 +160,7 @@ func (cs *CodeService) TrimName(name string) string {
 	n := strings.Split(cs.TrimPath(name), "/")
 
 	if n[len(n)-1] == "" {
-		return "chouyang.io"
+		return projectRoot
 	}
 
 	return n[len(n)-1]
