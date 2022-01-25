@@ -21,6 +21,9 @@ func GetRoutes() []*Route {
 
 	return []*Route{
 		request("GET", fmt.Sprintf("%s/*filepath", tools.Env("APP_ROOT")), file.GetFileByPath),
+
+		// fix 302 redirected issue
+		request("GET", tools.Env("APP_ROOT").(string), file.GetFileByPath),
 	}
 }
 

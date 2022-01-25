@@ -40,8 +40,19 @@ func (e *Engine) Ignite() *Engine {
 // registerRoutes registers all the routes
 func (e *Engine) registerRoutes() *Engine {
 	routes := http.GetRoutes()
+	g := e.Engine.Group("/")
+	g.Use(func(ctx *gin.Context) {
+		ctx.Header("Access-Control-Allow-Origin", tools.Env("APP_CORS_DOMAIN").(string))
+		ctx.Header("Access-Control-Allow-Methods", tools.Env("APP_CORS_METHODS").(string))
+		ctx.Header("Access-Control-Allow-Headers", tools.Env("APP_CORS_HEADERS").(string))
+		if ctx.Request.Method == "OPTIONS" {
+			return
+		}
+
+		ctx.Next()
+	})
 	for _, route := range routes {
-		e.Handle(route.Method, route.Path, route.Handle)
+		g.Handle(route.Method, route.Path, route.Handle)
 	}
 
 	return e
