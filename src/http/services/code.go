@@ -56,10 +56,12 @@ func (cs *CodeService) ReadTree(path string) (*models.Tree, errors.Throwable) {
 		return nil, errors.AccessDenied{}
 	}
 	tree := models.Tree{
-		Trees: []*models.Tree{},
-		Files: []string{},
-		Name:  cs.TrimName(path),
-		Path:  cs.TrimPath(path),
+		Trees:     []*models.Tree{},
+		Files:     []string{},
+		Name:      cs.TrimName(path),
+		Path:      cs.TrimPath(path),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	for _, item := range items {
 		if item.IsDir() {
@@ -137,7 +139,7 @@ func (cs *CodeService) TrimName(name string) string {
 	n := strings.Split(cs.TrimPath(name), "/")
 
 	if n[len(n)-1] == "" {
-		return "/"
+		return "chouyang.io"
 	}
 
 	return n[len(n)-1]
