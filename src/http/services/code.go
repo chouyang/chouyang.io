@@ -4,6 +4,7 @@ import (
 	"chouyang.io/src/errors"
 	"chouyang.io/src/tools"
 	"chouyang.io/src/types/models"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -37,14 +38,15 @@ func (cs *CodeService) ReadFile(path string, loadContent bool, fi os.FileInfo) (
 		content = []byte{}
 	}
 
+	mime := cs.GetFileMime(of.Name())
 	fm := models.File{
 		Name:       cs.TrimName(of.Name()),
 		Path:       cs.TrimPath(path),
 		Size:       fi.Size(),
-		Mime:       cs.GetFileMime(of.Name()),
+		Mime:       mime,
 		Hash:       tools.Md5([]byte(path)),
 		Permission: fi.Mode().String(),
-		Content:    string(content),
+		Content:    cs.presentableContent(mime, content),
 		CreatedBy:  0,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  fi.ModTime(),
@@ -186,4 +188,13 @@ func (cs *CodeService) IsForbidden(path string) bool {
 	}
 
 	return false
+}
+
+func (cs *CodeService) presentableContent(mime string, content []byte) string {
+	switch mime {
+	case "image/jpeg", "image/png", "image/gif", "image/x-icon":
+		return fmt.Sprintf("<img src=\"data:image/jpeg;base64,%s\" />", base64.StdEncoding.EncodeToString(content))
+	default:
+		return string(content)
+	}
 }
