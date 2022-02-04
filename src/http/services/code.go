@@ -151,7 +151,7 @@ func (cs *CodeService) TrimPath(path string) string {
 	p := strings.Trim(strings.ReplaceAll(path, RealRoot, ""), "/")
 
 	if p == "" {
-		return "/"
+		return VirtualRoot
 	}
 
 	return fmt.Sprintf("%s/%s", VirtualRoot, p)
